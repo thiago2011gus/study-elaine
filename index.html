@@ -1189,37 +1189,13 @@ body.dark .reading-stars span.filled{color:#f1b83b}
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="cronograma.js?v=2"></script>
 <script>
 const STORAGE_KEY='study_subjects_v2';
 const TIMER_KEY='study_timer_v2';
 
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
-const defaults=[
-  {id:uid(),name:'Direito Tributário',topics:[
-    {name:'Sistema Tributário Nacional',done:true},
-    {name:'Competência Tributária',done:true},
-    {name:'Limitações ao Poder de Tributar',done:true},
-    {name:'Impostos',done:false},
-    {name:'Crédito Tributário',done:false},
-    {name:'Obrigação Tributária',done:false}
-  ]},
-  {id:uid(),name:'Direito Administrativo',topics:[
-    {name:'Princípios da Administração Pública',done:true},
-    {name:'Atos Administrativos',done:true},
-    {name:'Poder de Polícia',done:false},
-    {name:'Agentes Públicos',done:false},
-    {name:'Licitações e Contratos',done:false}
-  ]},
-  {id:uid(),name:'Direito Constitucional',topics:[
-    {name:'Direitos e Garantias Fundamentais',done:true},
-    {name:'Organização do Estado',done:false},
-    {name:'Poder Legislativo',done:false},
-    {name:'Poder Executivo',done:false},
-    {name:'Controle de Constitucionalidade',done:false}
-  ]}
-];
+const defaults=[];
 
 function loadSubjects(){
   const raw=localStorage.getItem(STORAGE_KEY);
@@ -3207,50 +3183,42 @@ function populateTrailJumpSelect(){
 function scheduleDisplayText(text){return escapeHtml(String(text||'').replace(/^AULA\s*\d+[A-Z]?\s*/i,'').trim())}
 function scheduleSubjectsLabel(day){return (day.subjects||[]).join(' · ')||'Estudo / revisão'}
 function renderPlan(){
-  if(!window.STUDY_SCHEDULE)return;
-  const steps=getTrailSteps();if(!steps.length)return;
-  const currentIndex=getTrailIndex(),current=steps[currentIndex];
-  populateTrailJumpSelect();
   const summary=document.getElementById('scheduleSummary'),currentEl=document.getElementById('trailCurrent'),grid=document.getElementById('scheduleGrid');
   if(!summary||!currentEl||!grid)return;
-  const pct=Math.round((currentIndex/Math.max(steps.length-1,1))*100);
-  summary.innerHTML='<div class="trail-stat"><div class="trail-stat-label">Etapa atual</div><div class="trail-stat-value">'+(currentIndex+1)+' / '+steps.length+'</div></div><div class="trail-stat"><div class="trail-stat-label">Semana</div><div class="trail-stat-value">'+current.week+'</div></div><div class="trail-stat"><div class="trail-stat-label">Progresso da trilha</div><div class="trail-stat-value">'+pct+'%</div><div class="trail-progress"><div style="width:'+pct+'%"></div></div></div>';
-  const content=current.content&&current.content!=='-'?scheduleDisplayText(current.content):'Sem conteúdo principal informado.';
-  const q=current.questions&&current.questions!=='-'?'<div class="schedule-q"><strong>Questões / legislação:</strong><br>'+scheduleDisplayText(current.questions)+'</div>':'';
-  const undoBtn=canUndoTrail()?'<button class="btn btn-secondary" onclick="undoCompleteTrailStep()">↩ Desfazer conclusão</button>':'';
-  currentEl.innerHTML='<div class="trail-current-card"><div class="trail-current-kicker">Etapa '+(currentIndex+1)+' · Semana '+current.week+'</div><div class="trail-current-title">'+escapeHtml(current.day)+'</div><div class="schedule-kicker" style="margin-top:10px">'+escapeHtml(scheduleSubjectsLabel(current))+'</div><div class="trail-current-content">'+content+'</div>'+q+'<div class="trail-current-actions"><button class="btn btn-secondary" onclick="previousTrailStep()" '+(currentIndex===0?'disabled':'')+'>← Anterior</button><div style="display:flex;gap:8px"><button class="small-btn" onclick="startFeynmanFromSchedule('+current.week+',\''+current.day+'\')">✦ Feynman</button><button class="small-btn" onclick="openTopicPerformanceFromPlan()">Desempenho</button><button class="small-btn" onclick="researchFromSchedule('+current.week+',\''+current.day+'\')">⌕ Oráculo</button><button class="btn btn-primary" onclick="completeTrailStep()">Concluir e avançar →</button>'+undoBtn+'</div></div></div>';
-  const next=steps.slice(currentIndex+1,currentIndex+4);
-  grid.innerHTML=next.length?next.map((d,j)=>'<div class="card schedule-day"><div class="schedule-day-head"><div class="schedule-day-name">Etapa '+(currentIndex+j+2)+' · Semana '+d.week+'</div><div class="trail-done">Próxima</div></div><div class="schedule-kicker">'+escapeHtml(scheduleSubjectsLabel(d))+'</div><div class="schedule-content">'+scheduleDisplayText(d.content||'Sem conteúdo principal')+'</div>'+(d.questions&&d.questions!=='-'?'<div class="schedule-q"><strong>Questões / legislação:</strong><br>'+scheduleDisplayText(d.questions)+'</div>':'')+'</div>').join(''):'<div class="empty">Você chegou ao fim da trilha.</div>';
-}function getScheduleDay(weekNumber,dayName){
-  const w=window.STUDY_SCHEDULE?.weeks?.find(x=>x.week===Number(weekNumber));
-  return w?.days?.find(x=>x.day===dayName);
+  const allTopics=subjects.flatMap(s=>s.topics.map((t,i)=>({...t,subject:s,index:i})));
+  const done=allTopics.filter(t=>t.done).length, total=allTopics.length;
+  const pct=total?Math.round(done/total*100):0;
+  summary.innerHTML='<div class="trail-stat"><div class="trail-stat-label">Matérias</div><div class="trail-stat-value">'+subjects.length+'</div></div><div class="trail-stat"><div class="trail-stat-label">Assuntos cadastrados</div><div class="trail-stat-value">'+total+'</div></div><div class="trail-stat"><div class="trail-stat-label">Progresso geral</div><div class="trail-stat-value">'+pct+'%</div><div class="trail-progress"><div style="width:'+pct+'%"></div></div></div>';
+  const addButton='<button class="btn btn-primary" onclick="openSubjectModal()">+ Nova matéria</button>';
+  if(!subjects.length){
+    currentEl.innerHTML='<div class="trail-current-card"><div class="trail-current-kicker">Seu plano começa aqui</div><div class="trail-current-title">Monte sua trilha enquanto estuda</div><div class="trail-current-content">Cadastre a primeira matéria e adicione os assuntos conforme avançar. Não existe cronograma fixo: o seu plano cresce com você.</div><div style="margin-top:18px">'+addButton+'</div></div>';
+    grid.innerHTML='';
+    const title=document.querySelector('.trail-next-title');if(title)title.textContent='Como começar';
+    return;
+  }
+  currentEl.innerHTML='<div class="trail-current-card"><div class="trail-current-kicker">Sua trilha de estudos</div><div class="trail-current-title">'+(total?done+' de '+total+' assuntos concluídos':'Suas matérias já estão cadastradas')+'</div><div class="trail-current-content">'+(total?(total-done)+' assunto(s) ainda pendente(s). Continue de onde parou ou acrescente novos tópicos às matérias.':'Agora adicione assuntos nas matérias para começar a acompanhar seu progresso.')+'</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px">'+addButton+'<button class="btn btn-secondary" onclick="showView(\'subjects\')">Gerenciar matérias e assuntos</button></div></div>';
+  const title=document.querySelector('.trail-next-title');if(title)title.textContent='Matérias e assuntos da sua trilha';
+  grid.innerHTML=subjects.map(s=>{
+    const st=subjectStats(s);
+    const topicHtml=s.topics.length?s.topics.map((t,i)=>'<label class="elaine-plan-topic" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);cursor:pointer"><input type="checkbox" '+(t.done?'checked':'')+' onchange="toggleTopic(\''+s.id+'\','+i+')"><span style="flex:1;'+(t.done?'text-decoration:line-through;color:var(--muted);':'')+'">'+escapeHtml(t.name)+'</span><span class="trail-done">'+(t.done?'Concluído':'Pendente')+'</span></label>').join(''):'<div class="empty" style="margin:8px 0">Nenhum assunto cadastrado nesta matéria.</div>';
+    return '<div class="card schedule-day"><div class="schedule-day-head"><div class="schedule-day-name">'+escapeHtml(s.name)+'</div><div class="trail-done">'+st.pct+'%</div></div><div class="trail-progress"><div style="width:'+st.pct+'%"></div></div><div class="schedule-note" style="margin:8px 0 10px">'+st.done+' de '+st.total+' assuntos concluídos</div>'+topicHtml+'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="small-btn" onclick="showView(\'subjects\')">Adicionar assunto</button><button class="small-btn" onclick="renameSubject(\''+s.id+'\')">Editar matéria</button></div></div>';
+  }).join('');
 }
-function startFeynmanFromSchedule(weekNumber,dayName){
-  const d=getScheduleDay(weekNumber,dayName); if(!d)return;
-  const subject=(d.subjects&&d.subjects[0])||'';
-  const topic=(d.content||'').replace(/^AULA\s*\d+[A-Z]?\s*/i,'').trim();
-  const sel=document.getElementById('feynmanSubject');
-  if(sel&&subject){ const opt=[...sel.options].find(o=>o.textContent===subject); if(opt)sel.value=opt.value; }
-  const topicEl=document.getElementById('mentorTopic'); if(topicEl)topicEl.value=topic;
-  const textEl=document.getElementById('feynmanText'); if(textEl)textEl.value='';
-  showView('feynman');
-  setTimeout(()=>topicEl?.focus(),50);
-}
-function researchFromSchedule(weekNumber,dayName){
-  const d=getScheduleDay(weekNumber,dayName); if(!d)return;
-  const subject=(d.subjects&&d.subjects[0])||'';
-  const topic=(d.content||'').replace(/^AULA\s*\d+[A-Z]?\s*/i,'').trim();
-  const sel=document.getElementById('researchSubject');
-  if(sel&&subject){ const opt=[...sel.options].find(o=>o.textContent===subject); if(opt)sel.value=opt.value; }
-  const q=document.getElementById('researchQuestion'); if(q)q.value=topic;
-  showView('research');
-  setTimeout(()=>q?.focus(),50);
-}
+function getTrailSteps(){return subjects.flatMap(s=>s.topics.map((t,i)=>({...t,subject:s,index:i})))}
+function getTrailIndex(){return 0}
+function setTrailIndex(){renderPlan()}
+function jumpToTrailStep(){renderPlan()}
+function previousTrailStep(){renderPlan()}
+function canUndoTrail(){return false}
+function undoCompleteTrailStep(){}
+function completeTrailStep(){toast('Marque os assuntos como concluídos para atualizar seu progresso.')}
+function populateTrailJumpSelect(){}
 function renderDashboardPlan(){
-  const el=document.getElementById('dashboardTodayPlan');if(!el||!window.STUDY_SCHEDULE)return;
-  const steps=getTrailSteps();if(!steps.length){el.innerHTML='<div class="empty">Sem conteúdo.</div>';return;}
-  const i=getTrailIndex(),d=steps[i];
-  el.innerHTML='<div class="session"><div class="time">ETAPA '+(i+1)+'</div><div class="dot"></div><div><div class="sname">'+escapeHtml((d.subjects||[]).join(' · ')||'Estudo')+'</div><div class="stype">Semana '+d.week+' · '+escapeHtml(d.day)+' · '+scheduleDisplayText(d.content||'Sem conteúdo principal')+'</div></div><div class="status">Em andamento</div></div><div style="margin-top:10px"><button class="link-btn" onclick="showView(\'plan\')">Continuar trilha →</button></div>';
+  const el=document.getElementById('dashboardTodayPlan');if(!el)return;
+  const all=subjects.flatMap(s=>s.topics.map(t=>({...t,subject:s})));
+  const next=all.find(t=>!t.done);
+  if(!next){el.innerHTML=subjects.length?'<div class="empty">Tudo em dia! Adicione novos assuntos quando quiser continuar.</div>':'<div class="empty">Cadastre uma matéria para começar sua trilha.</div>';return}
+  el.innerHTML='<div class="session"><div class="time">PRÓXIMO ASSUNTO</div><div class="dot"></div><div><div class="sname">'+escapeHtml(next.subject.name)+'</div><div class="stype">'+escapeHtml(next.name)+'</div></div><div class="status">Pendente</div></div><div style="margin-top:10px"><button class="link-btn" onclick="showView(\'plan\')">Abrir meu plano →</button></div>';
 }
 function renderFeynmanSubjects(){
   const els=[document.getElementById('feynmanSubject')].filter(Boolean);
