@@ -3094,7 +3094,6 @@ const appearanceDefaults={
 function loadAppearance(){
   try{
     const saved=JSON.parse(localStorage.getItem(APPEARANCE_KEY)||'{}');
-    if(saved.accent==='#2f6254'||saved.accent==='#2563eb') saved.accent='#6f96bc';
     return {...appearanceDefaults,...saved};
   }catch(e){return {...appearanceDefaults}}
 }
