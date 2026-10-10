@@ -1190,6 +1190,31 @@ body.dark .reading-stars span.filled{color:#f1b83b}
 <div class="toast" id="toast"></div>
 
 <script>
+/* Isola todos os dados deste clone do Study. O GitHub Pages usa a mesma origem
+   para projetos do mesmo usuário, então localStorage precisa de namespace próprio. */
+(function(){
+  const prefix='study_elaine__';
+  const originalGet=Storage.prototype.getItem;
+  const originalSet=Storage.prototype.setItem;
+  const originalRemove=Storage.prototype.removeItem;
+  const originalKey=Storage.prototype.key;
+  Storage.prototype.getItem=function(key){return originalGet.call(this,prefix+String(key))};
+  Storage.prototype.setItem=function(key,value){return originalSet.call(this,prefix+String(key),value)};
+  Storage.prototype.removeItem=function(key){return originalRemove.call(this,prefix+String(key))};
+  Storage.prototype.key=function(index){
+    const keys=[];
+    for(let i=0;i<this.length;i++){const k=originalKey.call(this,i);if(k&&k.startsWith(prefix))keys.push(k.slice(prefix.length))}
+    return keys[index]??null;
+  };
+  const originalClear=Storage.prototype.clear;
+  Storage.prototype.clear=function(){
+    const keys=[];
+    for(let i=0;i<this.length;i++){const k=originalKey.call(this,i);if(k&&k.startsWith(prefix))keys.push(k)}
+    keys.forEach(k=>originalRemove.call(this,k));
+  };
+})();
+</script>
+<script>
 const STORAGE_KEY='study_subjects_v2';
 const TIMER_KEY='study_timer_v2';
 
